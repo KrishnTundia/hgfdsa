@@ -3,67 +3,84 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Checklist</title>
+<title>Tracker</title>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:#000;color:#f5f5f5;font:16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 body{min-height:100vh}
-main{max-width:760px;margin:0 auto;padding:28px 18px}
+main{width:min(100% - 32px,720px);margin:0 auto;padding:28px 0}
 header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
 h1{font-size:19px;font-weight:600;margin:0}
 button{border:1px solid #333;background:#000;color:#f5f5f5;padding:7px 12px;border-radius:5px;cursor:pointer;font:inherit}
 button:hover{border-color:#666}
-#lists{display:flex;flex-direction:column;gap:34px}
+#lists{display:flex;flex-direction:column;gap:30px}
 .list{border-top:1px solid #222}
-.list-name{display:block;width:100%;padding:13px 0 9px;border:0;outline:0;background:transparent;color:#f5f5f5;font:600 17px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:text}
-.row{display:flex;align-items:center;gap:10px;min-height:45px;border-bottom:1px solid #1c1c1c;padding:8px 0}
+.list-head{display:flex;align-items:center;gap:8px;padding:9px 0}
+.lock,.remove{border:0;padding:3px 5px;color:#888;background:transparent;font-size:15px}
+.lock:hover,.remove:hover{color:#fff}
+.list-name{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#f5f5f5;font:600 17px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.list-name::selection{background:#333}
+.row{display:flex;align-items:center;gap:9px;min-height:43px;border-bottom:1px solid #181818;padding:7px 0}
 .row input[type="checkbox"]{width:17px;height:17px;accent-color:#fff;flex:none}
-.row input[type="text"]{border:0;outline:0;flex:1;background:transparent;color:#f5f5f5;font:inherit;min-width:0}
-.row input[type="text"]::placeholder{color:#555}
-.timestamp{width:170px;flex:none;color:#aaa;user-select:none}
-.row.done .note{color:#aaa}
+.timestamp{width:148px;flex:none;color:#888;font-size:13px;user-select:none;white-space:nowrap}
+.note{display:block;width:min(100%,380px);min-height:26px;max-height:160px;resize:none;overflow:hidden;border:0;outline:0;border-bottom:1px solid #171717;background:transparent;color:#f5f5f5;font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:3px 0}
+.note::placeholder{color:#444}
+.row.locked .note{color:#aaa}
 .empty{color:#555;padding:10px 0}
+@media(max-width:600px){.timestamp{width:125px;font-size:12px}.note{width:min(100%,260px)}}
 </style>
 </head>
 <body>
 <main>
 <header>
-<h1>Checklist</h1>
+<h1>Tracker</h1>
 <button id="add">Add</button>
 </header>
 <div id="lists"></div>
 </main>
 
 <script>
-const KEY="simple-checklist-v2";
+const KEY="tracker-reset-v3";
 let lists=[];
 
-try{
-  lists=JSON.parse(localStorage.getItem(KEY)||"[]");
-}catch{
-  lists=[];
-}
+try{lists=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{lists=[]}
 
-function persist(){
-  localStorage.setItem(KEY,JSON.stringify(lists));
-}
+function persist(){localStorage.setItem(KEY,JSON.stringify(lists))}
 
-function newRows(){
-  return Array.from({length:11},()=>({id:crypto.randomUUID(),checked:false,time:"",note:""}));
+function rows(){
+  return Array.from({length:11},()=>({
+    id:crypto.randomUUID(),checked:false,time:"",note:""
+  }));
 }
 
 function createList(){
-  const list={
-    id:crypto.randomUUID(),
-    name:"New List",
-    rows:newRows()
-  };
+  const list={id:crypto.randomUUID(),name:"New List",unlocked:true,rows:rows()};
   lists.push(list);
   persist();
   render();
   const names=document.querySelectorAll(".list-name");
   names[names.length-1].focus();
   names[names.length-1].select();
+}
+
+function resize(textarea){
+  textarea.style.height="auto";
+  textarea.style.height=Math.min(textarea.scrollHeight,160)+"px";
+}
+
+function toggleRow(list,row,index){
+  if(!list.unlocked)return;
+
+  row.checked=!row.checked;
+  row.time=new Date().toLocaleString();
+
+  // Always keep one empty row at the bottom.
+  if(row.checked && index===list.rows.length-1){
+    list.rows.push({id:crypto.randomUUID(),checked:false,time:"",note:""});
+  }
+
+  persist();
+  render();
 }
 
 function render(){
@@ -79,86 +96,79 @@ function render(){
     const box=document.createElement("section");
     box.className="list";
 
+    const head=document.createElement("div");
+    head.className="list-head";
+
+    const lock=document.createElement("button");
+    lock.className="lock";
+    lock.type="button";
+    lock.title=list.unlocked?"Lock checking":"Unlock checking";
+    lock.textContent=list.unlocked?"🔓":"🔒";
+    lock.onclick=()=>{
+      list.unlocked=!list.unlocked;
+      persist();
+      render();
+    };
+
     const name=document.createElement("input");
     name.className="list-name";
     name.type="text";
     name.value=list.name;
-    name.setAttribute("aria-label","List name");
-    name.addEventListener("input",()=>{
-      list.name=name.value;
-      persist();
-    });
-    name.addEventListener("keydown",e=>{
-      if(e.key==="Enter")name.blur();
-    });
+    name.title="Click to rename";
+    name.addEventListener("input",()=>{list.name=name.value;persist()});
+    name.addEventListener("keydown",e=>{if(e.key==="Enter")name.blur()});
 
-    box.appendChild(name);
+    const remove=document.createElement("button");
+    remove.className="remove";
+    remove.type="button";
+    remove.title="Remove list";
+    remove.textContent="×";
+    remove.onclick=()=>{
+      if(confirm("Remove this list?")){
+        lists=lists.filter(x=>x.id!==list.id);
+        persist();
+        render();
+      }
+    };
+
+    head.append(lock,name,remove);
+    box.appendChild(head);
 
     list.rows.forEach((row,index)=>{
       const el=document.createElement("div");
-      el.className="row"+(row.checked?" done":"");
+      el.className="row"+(!list.unlocked?" locked":"");
 
       const checkbox=document.createElement("input");
       checkbox.type="checkbox";
       checkbox.checked=row.checked;
+      checkbox.disabled=!list.unlocked;
+      checkbox.addEventListener("change",()=>toggleRow(list,row,index));
 
       const timestamp=document.createElement("span");
       timestamp.className="timestamp";
-      timestamp.textContent=row.checked?row.time:"";
+      timestamp.textContent=row.time||"";
 
-      const note=document.createElement("input");
+      const note=document.createElement("textarea");
       note.className="note";
-      note.type="text";
+      note.rows=1;
       note.value=row.note;
       note.placeholder="Note";
       note.addEventListener("input",()=>{
         row.note=note.value;
+        resize(note);
         persist();
       });
 
-      checkbox.addEventListener("change",()=>{
-        if(!checkbox.checked)return;
-        row.checked=true;
-        row.time=new Date().toLocaleString();
-        timestamp.textContent=row.time;
-        checkbox.disabled=true;
-        el.classList.add("done");
-
-        // The final empty checkbox always remains available.
-        if(index===list.rows.length-1){
-          list.rows.push({
-            id:crypto.randomUUID(),
-            checked:false,
-            time:"",
-            note:""
-          });
-        }
-
-        persist();
-        render();
-
-        // Put the cursor in the note belonging to the newly completed row.
-        const allLists=document.querySelectorAll(".list");
-        const current=allLists[lists.indexOf(list)];
-        if(current){
-          const notes=current.querySelectorAll(".note");
-          if(notes[index])notes[index].focus();
-        }
-      });
-
-      if(row.checked)checkbox.disabled=true;
-
-      el.appendChild(checkbox);
-      el.appendChild(timestamp);
-      el.appendChild(note);
+      el.append(checkbox,timestamp,note);
       box.appendChild(el);
+      resize(note);
     });
 
     container.appendChild(box);
   });
 }
 
-document.getElementById("add").addEventListener("click",createList);
+document.getElementById("add").onclick=createList;
 render();
 </script>
 </body>
