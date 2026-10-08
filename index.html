@@ -16,16 +16,21 @@ button:hover{border-color:#666}
 #lists{display:flex;flex-direction:column;gap:30px}
 .list{border-top:1px solid #222}
 .list-head{display:flex;align-items:center;gap:8px;padding:9px 0}
-.lock{border:0;padding:3px 5px;color:#888;background:transparent;font-size:15px;margin-left:auto}
-.lock:hover{color:#fff}
 .list-name{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#f5f5f5;font:600 17px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .list-name::selection{background:#333}
+.actions{margin-left:auto;display:flex;gap:4px}
+.action{border:0;padding:3px 5px;color:#888;background:transparent;font-size:15px}
+.action:hover{color:#fff}
 .row{display:flex;align-items:center;gap:9px;min-height:43px;border-bottom:1px solid #181818;padding:7px 0}
 .row input[type="checkbox"]{width:17px;height:17px;accent-color:#fff;flex:none}
 .timestamp{width:148px;flex:none;color:#888;font-size:13px;user-select:none;white-space:nowrap}
 .note{display:block;width:min(100%,380px);min-height:26px;max-height:160px;resize:none;overflow:hidden;border:0;outline:0;border-bottom:1px solid #171717;background:transparent;color:#f5f5f5;font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:3px 0}
 .note::placeholder{color:#444}
 .empty{color:#555;padding:10px 0}
+#archive{margin-top:30px}
+.archived{opacity:.7}
+.archived .rows{display:none}
+.archive-title{font-size:13px;color:#666;margin-bottom:8px}
 @media(max-width:600px){.timestamp{width:125px;font-size:12px}.note{width:min(100%,260px)}}
 </style>
 </head>
@@ -36,56 +41,164 @@ button:hover{border-color:#666}
 <button id="add">Add</button>
 </header>
 <div id="lists"></div>
+<div id="archive"></div>
 </main>
 <script>
-const KEY="tracker-reset-v3";
+const KEY="tracker-reset-v4";
 let lists=[];
+
 try{lists=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{lists=[]}
+
 function persist(){localStorage.setItem(KEY,JSON.stringify(lists))}
-function rows(){return Array.from({length:5},()=>({id:crypto.randomUUID(),checked:false,time:"",note:""}))}
-function createList(){
-  const list={id:crypto.randomUUID(),name:"New List",locked:false,rows:rows()};
-  lists.push(list);persist();render();
-  const names=document.querySelectorAll(".list-name");
-  names[names.length-1].focus();names[names.length-1].select();
+
+function rows(){
+  return Array.from({length:5},()=>({
+    id:crypto.randomUUID(),checked:false,time:"",note:""
+  }));
 }
+
+function createList(){
+  const list={id:crypto.randomUUID(),name:"New List",locked:false,archived:false,rows:rows()};
+  lists.push(list);
+  persist();
+  render();
+  const names=document.querySelectorAll(".list-name");
+  names[names.length-1].focus();
+  names[names.length-1].select();
+}
+
 function resize(textarea){
   textarea.style.height="auto";
   textarea.style.height=Math.min(textarea.scrollHeight,160)+"px";
 }
+
 function checkRow(list,row,index,checkbox){
-  if(list.locked&&row.checked){checkbox.checked=true;return}
+  if(list.locked&&row.checked){
+    checkbox.checked=true;
+    return;
+  }
   if(row.checked)return;
-  row.checked=true;row.time=new Date().toLocaleString();
-  if(index===list.rows.length-1)list.rows.push({id:crypto.randomUUID(),checked:false,time:"",note:""});
-  persist();render();
+
+  row.checked=true;
+  row.time=new Date().toLocaleString();
+
+  if(index===list.rows.length-1){
+    list.rows.push({id:crypto.randomUUID(),checked:false,time:"",note:""});
+  }
+
+  persist();
+  render();
 }
-function render(){
-  const container=document.getElementById("lists");container.innerHTML="";
-  if(!lists.length){container.innerHTML='<div class="empty">No lists</div>';return}
-  lists.forEach(list=>{
-    const box=document.createElement("section");box.className="list";
-    const head=document.createElement("div");head.className="list-head";
-    const name=document.createElement("input");name.className="list-name";name.type="text";name.value=list.name;name.title="Click to rename";
-    name.addEventListener("input",()=>{list.name=name.value;persist()});
-    name.addEventListener("keydown",e=>{if(e.key==="Enter")name.blur()});
-    const lock=document.createElement("button");lock.className="lock";lock.type="button";
-    lock.title=list.locked?"Unlock list":"Lock list";lock.textContent=list.locked?"🔒":"🔓";
-    lock.onclick=()=>{list.locked=!list.locked;persist();render()};
-    head.append(name,lock);box.appendChild(head);
+
+function buildList(list){
+  const box=document.createElement("section");
+  box.className="list"+(list.archived?" archived":"");
+
+  const head=document.createElement("div");
+  head.className="list-head";
+
+  const name=document.createElement("input");
+  name.className="list-name";
+  name.type="text";
+  name.value=list.name;
+  name.title="Click to rename";
+  name.addEventListener("input",()=>{list.name=name.value;persist()});
+  name.addEventListener("keydown",e=>{if(e.key==="Enter")name.blur()});
+
+  const actions=document.createElement("div");
+  actions.className="actions";
+
+  const archive=document.createElement("button");
+  archive.className="action";
+  archive.type="button";
+  archive.title=list.archived?"Restore list":"Archive list";
+  archive.textContent=list.archived?"↩":"▾";
+  archive.onclick=()=>{
+    list.archived=!list.archived;
+    persist();
+    render();
+  };
+
+  const lock=document.createElement("button");
+  lock.className="action";
+  lock.type="button";
+  lock.title=list.locked?"Unlock list":"Lock list";
+  lock.textContent=list.locked?"🔒":"🔓";
+  lock.onclick=()=>{
+    list.locked=!list.locked;
+    persist();
+    render();
+  };
+
+  actions.append(archive,lock);
+  head.append(name,actions);
+  box.appendChild(head);
+
+  if(!list.archived){
+    const rowsBox=document.createElement("div");
+    rowsBox.className="rows";
+
     list.rows.forEach((row,index)=>{
-      const el=document.createElement("div");el.className="row";
-      const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=row.checked;
+      const el=document.createElement("div");
+      el.className="row";
+
+      const checkbox=document.createElement("input");
+      checkbox.type="checkbox";
+      checkbox.checked=row.checked;
       checkbox.addEventListener("change",()=>checkRow(list,row,index,checkbox));
-      const timestamp=document.createElement("span");timestamp.className="timestamp";timestamp.textContent=row.time||"";
-      const note=document.createElement("textarea");note.className="note";note.rows=1;note.value=row.note;note.placeholder="Note";
-      note.addEventListener("input",()=>{row.note=note.value;resize(note);persist()});
-      el.append(checkbox,timestamp,note);box.appendChild(el);resize(note);
+
+      const timestamp=document.createElement("span");
+      timestamp.className="timestamp";
+      timestamp.textContent=row.time||"";
+
+      const note=document.createElement("textarea");
+      note.className="note";
+      note.rows=1;
+      note.value=row.note;
+      note.placeholder="Note";
+      note.addEventListener("input",()=>{
+        row.note=note.value;
+        resize(note);
+        persist();
+      });
+
+      el.append(checkbox,timestamp,note);
+      rowsBox.appendChild(el);
+      resize(note);
     });
-    container.appendChild(box);
-  });
+
+    box.appendChild(rowsBox);
+  }
+
+  return box;
 }
+
+function render(){
+  const active=document.getElementById("lists");
+  const archive=document.getElementById("archive");
+  active.innerHTML="";
+  archive.innerHTML="";
+
+  const visible=lists.filter(list=>!list.archived);
+  const archived=lists.filter(list=>list.archived);
+
+  if(!visible.length)active.innerHTML='<div class="empty">No active lists</div>';
+  visible.forEach(list=>active.appendChild(buildList(list)));
+
+  if(archived.length){
+    const title=document.createElement("div");
+    title.className="archive-title";
+    title.textContent="Archived";
+    archive.appendChild(title);
+    archived.forEach(list=>archive.appendChild(buildList(list)));
+  }
+}
+
 document.getElementById("add").onclick=createList;
+
+// Intentionally starts with no lists: previous test data is reset.
+lists=[];
+persist();
 render();
 </script>
 </body>
