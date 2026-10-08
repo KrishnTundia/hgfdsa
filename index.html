@@ -1,27 +1,27 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Checklist</title>
-<style>
-*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#111;font:16px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-main{max-width:760px;margin:40px auto;padding:0 20px}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
-h1{font-size:20px;font-weight:600;margin:0}.add{border:1px solid #ccc;background:#fff;padding:7px 12px;cursor:pointer;border-radius:6px}
-#list{display:flex;flex-direction:column}.row{display:flex;align-items:center;gap:10px;border-bottom:1px solid #eee;padding:11px 0;min-height:44px}
-.row input[type="text"]{border:0;outline:0;flex:1;font:inherit;background:transparent}.time{flex:1;color:#666}.empty{color:#888;padding:12px 0}
-</style>
-</head>
-<body><main><header><h1>Checklist</h1><button class="add" id="add">Add</button></header><div id="list"></div></main>
-<script>
-const KEY='simple-checklist-v1';let items=[];try{items=JSON.parse(localStorage.getItem(KEY)||'[]')}catch{items=[]}
-function save(){localStorage.setItem(KEY,JSON.stringify(items));render()}
-function render(){const list=document.getElementById('list');list.innerHTML='';if(!items.length){list.innerHTML='<div class="empty">No items</div>';return}
-items.forEach(item=>{const row=document.createElement('div');row.className='row';
-if(item.time){const t=document.createElement('span');t.className='time';t.textContent=item.text+' — '+item.time;row.appendChild(t)}
-else{const cb=document.createElement('input');cb.type='checkbox';cb.addEventListener('change',()=>{if(cb.checked){item.time=new Date().toLocaleString();save()}});row.appendChild(cb);
-const input=document.createElement('input');input.type='text';input.value=item.text;input.placeholder='Note';input.addEventListener('input',()=>{item.text=input.value;localStorage.setItem(KEY,JSON.stringify(items))});row.appendChild(input)}
-list.appendChild(row)})}
-document.getElementById('add').onclick=()=>{items.push({id:crypto.randomUUID(),text:'',time:null});save();const inputs=document.querySelectorAll('#list input[type="text"]');if(inputs.length)inputs[inputs.length-1].focus()};render();
-</script></body></html>
+
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Eco-Route AI</title>    
+    <!-- THIS IS THE START OF A COMMENT BLOCK, BLOCK TO BE DELETED: Google Fonts here, example:
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    THIS IS THE END OF A COMMENT BLOCK, BLOCK TO BE DELETED -->
+    <script type="module" crossorigin src="/assets/index-CCa8LhYR.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-B4Yqewvk.css">
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script
+      defer
+      src="/umami"
+      data-website-id=""></script>
+  </body>
+
+</html>
