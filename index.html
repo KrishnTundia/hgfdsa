@@ -2,73 +2,111 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
 <title>Tracker</title>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:#000;color:#f5f5f5;font:16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 body{min-height:100vh}
-main{width:min(100% - 32px,720px);margin:0 auto;padding:28px 0}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
-h1{font-size:19px;font-weight:600;margin:0}
-button{border:1px solid #333;background:#000;color:#f5f5f5;padding:7px 12px;border-radius:5px;cursor:pointer;font:inherit}
+main{width:min(100% - 32px,720px);margin:0 auto;padding:24px 0 90px}
+button{border:1px solid #333;background:#000;color:#f5f5f5;border-radius:6px;cursor:pointer;font:inherit}
 button:hover{border-color:#666}
-#lists{display:flex;flex-direction:column;gap:30px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.top h1{font-size:20px;font-weight:600;margin:0}
+.back{border:0;padding:4px 0;color:#aaa;background:transparent}
+.back:hover{color:#fff}
+.top-spacer{flex:1}
+.add{padding:7px 12px}
+.screen{display:none}
+.screen.active{display:block}
+.home-title{font-size:28px;font-weight:600;margin:8px 0 6px}
+.home-sub{color:#666;margin-bottom:28px}
+.home-list{display:flex;align-items:center;border-top:1px solid #222;padding:15px 0;cursor:pointer}
+.home-list:last-child{border-bottom:1px solid #222}
+.home-list-name{flex:1}
+.home-list-count{color:#666;font-size:13px;margin-right:10px}
+.open-arrow{color:#666}
+.empty{color:#555;padding:10px 0}
 .list{border-top:1px solid #222}
 .list-head{display:flex;align-items:center;gap:8px;padding:9px 0}
 .list-name{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#f5f5f5;font:600 17px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .list-name::selection{background:#333}
-.actions{margin-left:auto;display:flex;gap:4px}
-.action{border:0;padding:3px 5px;color:#888;background:transparent;font-size:15px}
+.actions{margin-left:auto;display:flex;gap:5px}
+.action{border:0;padding:5px 6px;color:#aaa;background:transparent;font-size:17px}
 .action:hover{color:#fff}
 .row{display:flex;align-items:center;gap:9px;min-height:43px;border-bottom:1px solid #181818;padding:7px 0}
 .row input[type="checkbox"]{width:17px;height:17px;accent-color:#fff;flex:none}
 .timestamp{width:148px;flex:none;color:#888;font-size:13px;user-select:none;white-space:nowrap}
 .note{display:block;width:min(100%,380px);min-height:26px;max-height:160px;resize:none;overflow:hidden;border:0;outline:0;border-bottom:1px solid #171717;background:transparent;color:#f5f5f5;font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:3px 0}
 .note::placeholder{color:#444}
-.empty{color:#555;padding:10px 0}
-.archive-bar{margin-top:32px;border-top:1px solid #171717;padding-top:12px}
-.archive-toggle{border:0;padding:0;color:#666;background:transparent;font-size:13px}
-.archive-toggle:hover{color:#aaa}
-@media(max-width:600px){.timestamp{width:125px;font-size:12px}.note{width:min(100%,260px)}}
+.archive-list{border-top:1px solid #222;padding:14px 0;display:flex;align-items:center}
+.archive-list span{flex:1}
+.archive-list button{border:0;padding:4px;color:#aaa}
+.screen-title{font-size:20px;font-weight:600;margin:0 0 20px}
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;height:64px;padding-bottom:env(safe-area-inset-bottom);background:#000;border-top:1px solid #222;display:flex;justify-content:center;z-index:10}
+.nav-btn{flex:1;max-width:180px;border:0;border-radius:0;color:#666;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px}
+.nav-btn .icon{font-size:18px;line-height:18px}
+.nav-btn.active{color:#fff}
+@media(max-width:600px){
+  .timestamp{width:125px;font-size:12px}
+  .note{width:min(100%,260px)}
+}
 </style>
 </head>
 <body>
 <main>
-<header>
-<h1>Tracker</h1>
-<button id="add">Add</button>
-</header>
-<div id="lists"></div>
-<div id="archive"></div>
-</main>
-<script>
-const KEY="tracker-v6";
-const OLD_KEYS=["simple-checklist-v1","simple-checklist-v2","tracker-reset-v3","tracker-reset-v4","tracker-v5"];
-let lists=[];
-let archiveOpen=false;
+  <section id="homeScreen" class="screen active">
+    <div class="top"><div class="top-spacer"></div><button class="add" id="homeAdd">Add</button></div>
+    <div class="home-title">Tracker</div>
+    <div class="home-sub">Your lists</div>
+    <div id="homeLists"></div>
+  </section>
 
-OLD_KEYS.forEach(key=>localStorage.removeItem(key));
+  <section id="trackerScreen" class="screen">
+    <div class="top">
+      <button class="back" id="trackerBack">← Back</button>
+      <div class="top-spacer"></div>
+      <button class="add" id="trackerAdd">Add</button>
+    </div>
+    <div id="trackerLists"></div>
+  </section>
+
+  <section id="archiveScreen" class="screen">
+    <div class="top"><button class="back" id="archiveBack">← Back</button></div>
+    <h2 class="screen-title">Archive</h2>
+    <div id="archiveLists"></div>
+  </section>
+
+  <section id="addScreen" class="screen">
+    <div class="top"><button class="back" id="addBack">← Back</button></div>
+    <h2 class="screen-title">New list</h2>
+    <div id="newList"></div>
+  </section>
+</main>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-screen="homeScreen"><span class="icon">⌂</span>Home</button>
+  <button class="nav-btn" data-screen="trackerScreen"><span class="icon">☑</span>Tracker</button>
+  <button class="nav-btn" data-screen="archiveScreen"><span class="icon">▱</span>Archive</button>
+  <button class="nav-btn" data-screen="addScreen"><span class="icon">＋</span>Add</button>
+</nav>
+
+<script>
+const KEY="tracker-v7";
+let lists=[];
+let currentScreen="homeScreen";
+
 try{lists=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{lists=[]}
 
 function persist(){localStorage.setItem(KEY,JSON.stringify(lists))}
 
 function newRows(){
-  // Exactly 4 normal rows + 1 live extra row.
-  return Array.from({length:5},()=>({
-    id:crypto.randomUUID(),checked:false,time:"",note:""
-  }));
+  return Array.from({length:5},()=>({id:crypto.randomUUID(),checked:false,time:"",note:""}));
 }
 
-function createList(){
-  const list={id:crypto.randomUUID(),name:"New List",locked:false,archived:false,rows:newRows()};
-  lists.push(list);
-  persist();
-  render();
-  const names=document.querySelectorAll(".list-name");
-  names[names.length-1].focus();
-  names[names.length-1].select();
+function makeList(){
+  return {id:crypto.randomUUID(),name:"New List",locked:false,archived:false,rows:newRows()};
 }
 
 function resize(area){
@@ -76,14 +114,35 @@ function resize(area){
   area.style.height=Math.min(area.scrollHeight,160)+"px";
 }
 
+function show(screenId){
+  currentScreen=screenId;
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(screenId).classList.add("active");
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.screen===screenId));
+  render();
+  window.scrollTo(0,0);
+}
+
+function addList(openScreen=true){
+  const list=makeList();
+  lists.push(list);
+  persist();
+  if(openScreen)show("trackerScreen");
+  setTimeout(()=>{
+    const names=document.querySelectorAll(".list-name");
+    if(names.length){names[names.length-1].focus();names[names.length-1].select()}
+  },0);
+}
+
 function changeCheck(list,row,index,checkbox){
   if(row.checked){
-    if(list.locked)checkbox.checked=true;
-    else{
-      row.checked=false;
-      persist();
-      render();
+    if(list.locked){
+      checkbox.checked=true;
+      return;
     }
+    row.checked=false;
+    persist();
+    render();
     return;
   }
 
@@ -118,20 +177,19 @@ function buildList(list){
 
   const archive=document.createElement("button");
   archive.className="action";
-  archive.type="button";
-  archive.title=list.archived?"Restore list":"Archive list";
-  archive.textContent=list.archived?"↩":"▾";
+  archive.title="Archive list";
+  archive.textContent="▾";
   archive.onclick=()=>{
-    list.archived=!list.archived;
+    list.archived=true;
     persist();
-    render();
+    show("homeScreen");
   };
 
   const lock=document.createElement("button");
   lock.className="action";
-  lock.type="button";
   lock.title=list.locked?"Unlock list":"Lock list";
   lock.textContent=list.locked?"🔒":"🔓";
+  lock.setAttribute("aria-label",list.locked?"Locked":"Unlocked");
   lock.onclick=()=>{
     list.locked=!list.locked;
     persist();
@@ -176,35 +234,119 @@ function buildList(list){
   return box;
 }
 
-function render(){
-  const active=document.getElementById("lists");
-  const archive=document.getElementById("archive");
-  active.innerHTML="";
-  archive.innerHTML="";
+function renderHome(){
+  const root=document.getElementById("homeLists");
+  root.innerHTML="";
+  const active=lists.filter(x=>!x.archived);
 
-  const visible=lists.filter(x=>!x.archived);
-  const archived=lists.filter(x=>x.archived);
-
-  if(!visible.length)active.innerHTML='<div class="empty">No active lists</div>';
-  visible.forEach(x=>active.appendChild(buildList(x)));
-
-  if(archived.length){
-    const bar=document.createElement("div");
-    bar.className="archive-bar";
-
-    const toggle=document.createElement("button");
-    toggle.className="archive-toggle";
-    toggle.textContent=(archiveOpen?"Hide":"Show")+" Archived ("+archived.length+")";
-    toggle.onclick=()=>{archiveOpen=!archiveOpen;render()};
-
-    bar.appendChild(toggle);
-    archive.appendChild(bar);
-
-    if(archiveOpen)archived.forEach(x=>archive.appendChild(buildList(x)));
+  if(!active.length){
+    root.innerHTML='<div class="empty">No lists yet</div>';
+    return;
   }
+
+  active.forEach(list=>{
+    const item=document.createElement("div");
+    item.className="home-list";
+    item.onclick=()=>show("trackerScreen");
+
+    const name=document.createElement("span");
+    name.className="home-list-name";
+    name.textContent=list.name||"Untitled";
+
+    const count=document.createElement("span");
+    count.className="home-list-count";
+    count.textContent=list.rows.filter(r=>r.checked).length+" done";
+
+    const arrow=document.createElement("span");
+    arrow.className="open-arrow";
+    arrow.textContent="›";
+
+    item.append(name,count,arrow);
+    root.appendChild(item);
+  });
 }
 
-document.getElementById("add").onclick=createList;
+function renderTracker(){
+  const root=document.getElementById("trackerLists");
+  root.innerHTML="";
+  const active=lists.filter(x=>!x.archived);
+
+  if(!active.length){
+    root.innerHTML='<div class="empty">No active lists</div>';
+    return;
+  }
+
+  active.forEach(list=>root.appendChild(buildList(list)));
+}
+
+function renderArchive(){
+  const root=document.getElementById("archiveLists");
+  root.innerHTML="";
+  const archived=lists.filter(x=>x.archived);
+
+  if(!archived.length){
+    root.innerHTML='<div class="empty">No archived lists</div>';
+    return;
+  }
+
+  archived.forEach(list=>{
+    const item=document.createElement("div");
+    item.className="archive-list";
+
+    const name=document.createElement("span");
+    name.textContent=list.name||"Untitled";
+
+    const restore=document.createElement("button");
+    restore.textContent="Restore";
+    restore.onclick=()=>{
+      list.archived=false;
+      persist();
+      render();
+    };
+
+    item.append(name,restore);
+    root.appendChild(item);
+  });
+}
+
+function renderNewList(){
+  const root=document.getElementById("newList");
+  root.innerHTML="";
+  const preview=makeList();
+  root.appendChild(buildList(preview));
+
+  const save=document.createElement("button");
+  save.textContent="Create list";
+  save.style.marginTop="18px";
+  save.onclick=()=>{
+    preview.archived=false;
+    lists.push(preview);
+    persist();
+    show("trackerScreen");
+  };
+  root.appendChild(save);
+}
+
+function render(){
+  renderHome();
+  renderTracker();
+  renderArchive();
+  if(currentScreen==="addScreen")renderNewList();
+}
+
+document.querySelectorAll(".nav-btn").forEach(btn=>{
+  btn.onclick=()=>{
+    if(btn.dataset.screen==="addScreen")renderNewList();
+    show(btn.dataset.screen);
+  };
+});
+
+document.getElementById("homeAdd").onclick=()=>addList(true);
+document.getElementById("trackerAdd").onclick=()=>addList(true);
+document.getElementById("trackerBack").onclick=()=>show("homeScreen");
+document.getElementById("archiveBack").onclick=()=>show("homeScreen");
+document.getElementById("addBack").onclick=()=>show("homeScreen");
+
 render();
 </script>
 </body>
