@@ -8,17 +8,20 @@
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:#000;color:#f5f5f5;font:16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 body{min-height:100vh}
-main{max-width:720px;margin:0 auto;padding:28px 18px}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+main{max-width:760px;margin:0 auto;padding:28px 18px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
 h1{font-size:19px;font-weight:600;margin:0}
 button{border:1px solid #333;background:#000;color:#f5f5f5;padding:7px 12px;border-radius:5px;cursor:pointer;font:inherit}
 button:hover{border-color:#666}
-#list{display:flex;flex-direction:column}
-.row{display:flex;align-items:center;gap:10px;min-height:45px;border-bottom:1px solid #1c1c1c;padding:9px 0}
+#lists{display:flex;flex-direction:column;gap:34px}
+.list{border-top:1px solid #222}
+.list-name{display:block;width:100%;padding:13px 0 9px;border:0;outline:0;background:transparent;color:#f5f5f5;font:600 17px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:text}
+.row{display:flex;align-items:center;gap:10px;min-height:45px;border-bottom:1px solid #1c1c1c;padding:8px 0}
 .row input[type="checkbox"]{width:17px;height:17px;accent-color:#fff;flex:none}
 .row input[type="text"]{border:0;outline:0;flex:1;background:transparent;color:#f5f5f5;font:inherit;min-width:0}
-.row input[type="text"]::placeholder{color:#666}
-.time{flex:1;color:#aaa}
+.row input[type="text"]::placeholder{color:#555}
+.timestamp{width:170px;flex:none;color:#aaa;user-select:none}
+.row.done .note{color:#aaa}
 .empty{color:#555;padding:10px 0}
 </style>
 </head>
@@ -28,69 +31,134 @@ button:hover{border-color:#666}
 <h1>Checklist</h1>
 <button id="add">Add</button>
 </header>
-<div id="list"></div>
+<div id="lists"></div>
 </main>
-<script>
-const KEY="simple-checklist-v1";
-let items=[];
-try{items=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{items=[]}
 
-function save(){
-  localStorage.setItem(KEY,JSON.stringify(items));
+<script>
+const KEY="simple-checklist-v2";
+let lists=[];
+
+try{
+  lists=JSON.parse(localStorage.getItem(KEY)||"[]");
+}catch{
+  lists=[];
+}
+
+function persist(){
+  localStorage.setItem(KEY,JSON.stringify(lists));
+}
+
+function newRows(){
+  return Array.from({length:11},()=>({id:crypto.randomUUID(),checked:false,time:"",note:""}));
+}
+
+function createList(){
+  const list={
+    id:crypto.randomUUID(),
+    name:"New List",
+    rows:newRows()
+  };
+  lists.push(list);
+  persist();
   render();
+  const names=document.querySelectorAll(".list-name");
+  names[names.length-1].focus();
+  names[names.length-1].select();
 }
 
 function render(){
-  const list=document.getElementById("list");
-  list.innerHTML="";
-  if(!items.length){
-    list.innerHTML='<div class="empty">No items</div>';
+  const container=document.getElementById("lists");
+  container.innerHTML="";
+
+  if(!lists.length){
+    container.innerHTML='<div class="empty">No lists</div>';
     return;
   }
 
-  items.forEach(item=>{
-    const row=document.createElement("div");
-    row.className="row";
+  lists.forEach(list=>{
+    const box=document.createElement("section");
+    box.className="list";
 
-    if(item.time){
-      const time=document.createElement("span");
-      time.className="time";
-      time.textContent=item.text+" — "+item.time;
-      row.appendChild(time);
-    }else{
+    const name=document.createElement("input");
+    name.className="list-name";
+    name.type="text";
+    name.value=list.name;
+    name.setAttribute("aria-label","List name");
+    name.addEventListener("input",()=>{
+      list.name=name.value;
+      persist();
+    });
+    name.addEventListener("keydown",e=>{
+      if(e.key==="Enter")name.blur();
+    });
+
+    box.appendChild(name);
+
+    list.rows.forEach((row,index)=>{
+      const el=document.createElement("div");
+      el.className="row"+(row.checked?" done":"");
+
       const checkbox=document.createElement("input");
       checkbox.type="checkbox";
+      checkbox.checked=row.checked;
+
+      const timestamp=document.createElement("span");
+      timestamp.className="timestamp";
+      timestamp.textContent=row.checked?row.time:"";
+
+      const note=document.createElement("input");
+      note.className="note";
+      note.type="text";
+      note.value=row.note;
+      note.placeholder="Note";
+      note.addEventListener("input",()=>{
+        row.note=note.value;
+        persist();
+      });
+
       checkbox.addEventListener("change",()=>{
-        if(checkbox.checked){
-          item.time=new Date().toLocaleString();
-          save();
+        if(!checkbox.checked)return;
+        row.checked=true;
+        row.time=new Date().toLocaleString();
+        timestamp.textContent=row.time;
+        checkbox.disabled=true;
+        el.classList.add("done");
+
+        // The final empty checkbox always remains available.
+        if(index===list.rows.length-1){
+          list.rows.push({
+            id:crypto.randomUUID(),
+            checked:false,
+            time:"",
+            note:""
+          });
+        }
+
+        persist();
+        render();
+
+        // Put the cursor in the note belonging to the newly completed row.
+        const allLists=document.querySelectorAll(".list");
+        const current=allLists[lists.indexOf(list)];
+        if(current){
+          const notes=current.querySelectorAll(".note");
+          if(notes[index])notes[index].focus();
         }
       });
 
-      const input=document.createElement("input");
-      input.type="text";
-      input.value=item.text;
-      input.placeholder="Note";
-      input.addEventListener("input",()=>{
-        item.text=input.value;
-        localStorage.setItem(KEY,JSON.stringify(items));
-      });
+      if(row.checked)checkbox.disabled=true;
 
-      row.appendChild(checkbox);
-      row.appendChild(input);
-    }
+      el.appendChild(checkbox);
+      el.appendChild(timestamp);
+      el.appendChild(note);
+      box.appendChild(el);
+    });
 
-    list.appendChild(row);
+    container.appendChild(box);
   });
 }
 
-document.getElementById("add").onclick=()=>{
-  items.push({id:crypto.randomUUID(),text:"",time:null});
-  save();
-  const inputs=document.querySelectorAll('#list input[type="text"]');
-  if(inputs.length)inputs[inputs.length-1].focus();
-};
-
+document.getElementById("add").addEventListener("click",createList);
 render();
 </script>
 </body>
