@@ -27,10 +27,10 @@ button:hover{border-color:#666}
 .note{display:block;width:min(100%,380px);min-height:26px;max-height:160px;resize:none;overflow:hidden;border:0;outline:0;border-bottom:1px solid #171717;background:transparent;color:#f5f5f5;font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:3px 0}
 .note::placeholder{color:#444}
 .empty{color:#555;padding:10px 0}
-#archive{margin-top:30px}
-.archived{opacity:.7}
-.archived .rows{display:none}
-.archive-title{font-size:13px;color:#666;margin-bottom:8px}
+.archive-bar{margin-top:32px;border-top:1px solid #171717;padding-top:12px}
+.archive-toggle{border:0;padding:0;color:#666;background:transparent;font-size:13px}
+.archive-toggle:hover{color:#aaa}
+.archived-list{opacity:.75}
 @media(max-width:600px){.timestamp{width:125px;font-size:12px}.note{width:min(100%,260px)}}
 </style>
 </head>
@@ -43,9 +43,11 @@ button:hover{border-color:#666}
 <div id="lists"></div>
 <div id="archive"></div>
 </main>
+
 <script>
-const KEY="tracker-reset-v4";
+const KEY="tracker-v5";
 let lists=[];
+let archiveOpen=false;
 
 try{lists=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{lists=[]}
 
@@ -92,7 +94,7 @@ function checkRow(list,row,index,checkbox){
 
 function buildList(list){
   const box=document.createElement("section");
-  box.className="list"+(list.archived?" archived":"");
+  box.className="list"+(list.archived?" archived-list":"");
 
   const head=document.createElement("div");
   head.className="list-head";
@@ -136,7 +138,6 @@ function buildList(list){
 
   if(!list.archived){
     const rowsBox=document.createElement("div");
-    rowsBox.className="rows";
 
     list.rows.forEach((row,index)=>{
       const el=document.createElement("div");
@@ -179,26 +180,36 @@ function render(){
   active.innerHTML="";
   archive.innerHTML="";
 
-  const visible=lists.filter(list=>!list.archived);
-  const archived=lists.filter(list=>list.archived);
+  const visible=lists.filter(x=>!x.archived);
+  const archived=lists.filter(x=>x.archived);
 
   if(!visible.length)active.innerHTML='<div class="empty">No active lists</div>';
   visible.forEach(list=>active.appendChild(buildList(list)));
 
   if(archived.length){
-    const title=document.createElement("div");
-    title.className="archive-title";
-    title.textContent="Archived";
-    archive.appendChild(title);
-    archived.forEach(list=>archive.appendChild(buildList(list)));
+    const bar=document.createElement("div");
+    bar.className="archive-bar";
+
+    const toggle=document.createElement("button");
+    toggle.className="archive-toggle";
+    toggle.textContent=(archiveOpen?"Hide":"Show")+" Archived ("+archived.length+")";
+    toggle.onclick=()=>{
+      archiveOpen=!archiveOpen;
+      render();
+    };
+    bar.appendChild(toggle);
+
+    if(archiveOpen){
+      archived.forEach(list=>archive.appendChild(buildList(list)));
+    }
+    archive.appendChild(bar);
   }
 }
 
 document.getElementById("add").onclick=createList;
 
-// Intentionally starts with no lists: previous test data is reset.
-lists=[];
-persist();
+// v5 intentionally starts fresh so the previous test list is gone.
+localStorage.removeItem("tracker-v4");
 render();
 </script>
 </body>
