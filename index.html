@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
 <title>Tracker</title>
 <style>
 *{box-sizing:border-box}
@@ -30,7 +31,6 @@ button:hover{border-color:#666}
 .archive-bar{margin-top:32px;border-top:1px solid #171717;padding-top:12px}
 .archive-toggle{border:0;padding:0;color:#666;background:transparent;font-size:13px}
 .archive-toggle:hover{color:#aaa}
-.archived-list{opacity:.75}
 @media(max-width:600px){.timestamp{width:125px;font-size:12px}.note{width:min(100%,260px)}}
 </style>
 </head>
@@ -43,24 +43,26 @@ button:hover{border-color:#666}
 <div id="lists"></div>
 <div id="archive"></div>
 </main>
-
 <script>
-const KEY="tracker-v5";
+const KEY="tracker-v6";
+const OLD_KEYS=["simple-checklist-v1","simple-checklist-v2","tracker-reset-v3","tracker-reset-v4","tracker-v5"];
 let lists=[];
 let archiveOpen=false;
 
+OLD_KEYS.forEach(key=>localStorage.removeItem(key));
 try{lists=JSON.parse(localStorage.getItem(KEY)||"[]")}catch{lists=[]}
 
 function persist(){localStorage.setItem(KEY,JSON.stringify(lists))}
 
-function rows(){
+function newRows(){
+  // Exactly 4 normal rows + 1 live extra row.
   return Array.from({length:5},()=>({
     id:crypto.randomUUID(),checked:false,time:"",note:""
   }));
 }
 
 function createList(){
-  const list={id:crypto.randomUUID(),name:"New List",locked:false,archived:false,rows:rows()};
+  const list={id:crypto.randomUUID(),name:"New List",locked:false,archived:false,rows:newRows()};
   lists.push(list);
   persist();
   render();
@@ -69,17 +71,21 @@ function createList(){
   names[names.length-1].select();
 }
 
-function resize(textarea){
-  textarea.style.height="auto";
-  textarea.style.height=Math.min(textarea.scrollHeight,160)+"px";
+function resize(area){
+  area.style.height="auto";
+  area.style.height=Math.min(area.scrollHeight,160)+"px";
 }
 
-function checkRow(list,row,index,checkbox){
-  if(list.locked&&row.checked){
-    checkbox.checked=true;
+function changeCheck(list,row,index,checkbox){
+  if(row.checked){
+    if(list.locked)checkbox.checked=true;
+    else{
+      row.checked=false;
+      persist();
+      render();
+    }
     return;
   }
-  if(row.checked)return;
 
   row.checked=true;
   row.time=new Date().toLocaleString();
@@ -94,7 +100,7 @@ function checkRow(list,row,index,checkbox){
 
 function buildList(list){
   const box=document.createElement("section");
-  box.className="list"+(list.archived?" archived-list":"");
+  box.className="list";
 
   const head=document.createElement("div");
   head.className="list-head";
@@ -137,8 +143,6 @@ function buildList(list){
   box.appendChild(head);
 
   if(!list.archived){
-    const rowsBox=document.createElement("div");
-
     list.rows.forEach((row,index)=>{
       const el=document.createElement("div");
       el.className="row";
@@ -146,7 +150,7 @@ function buildList(list){
       const checkbox=document.createElement("input");
       checkbox.type="checkbox";
       checkbox.checked=row.checked;
-      checkbox.addEventListener("change",()=>checkRow(list,row,index,checkbox));
+      checkbox.addEventListener("change",()=>changeCheck(list,row,index,checkbox));
 
       const timestamp=document.createElement("span");
       timestamp.className="timestamp";
@@ -164,11 +168,9 @@ function buildList(list){
       });
 
       el.append(checkbox,timestamp,note);
-      rowsBox.appendChild(el);
+      box.appendChild(el);
       resize(note);
     });
-
-    box.appendChild(rowsBox);
   }
 
   return box;
@@ -184,7 +186,7 @@ function render(){
   const archived=lists.filter(x=>x.archived);
 
   if(!visible.length)active.innerHTML='<div class="empty">No active lists</div>';
-  visible.forEach(list=>active.appendChild(buildList(list)));
+  visible.forEach(x=>active.appendChild(buildList(x)));
 
   if(archived.length){
     const bar=document.createElement("div");
@@ -193,23 +195,16 @@ function render(){
     const toggle=document.createElement("button");
     toggle.className="archive-toggle";
     toggle.textContent=(archiveOpen?"Hide":"Show")+" Archived ("+archived.length+")";
-    toggle.onclick=()=>{
-      archiveOpen=!archiveOpen;
-      render();
-    };
-    bar.appendChild(toggle);
+    toggle.onclick=()=>{archiveOpen=!archiveOpen;render()};
 
-    if(archiveOpen){
-      archived.forEach(list=>archive.appendChild(buildList(list)));
-    }
+    bar.appendChild(toggle);
     archive.appendChild(bar);
+
+    if(archiveOpen)archived.forEach(x=>archive.appendChild(buildList(x)));
   }
 }
 
 document.getElementById("add").onclick=createList;
-
-// v5 intentionally starts fresh so the previous test list is gone.
-localStorage.removeItem("tracker-v4");
 render();
 </script>
 </body>
